@@ -1,30 +1,35 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import AssessmentForm from "@/components/AssessmentForm";
-import AssessmentResult from "@/components/AssessmentResult";
+import ResumeInput from "@/components/ResumeInput";
+import JobResultsList from "@/components/JobResultsList";
+import { type Job } from "@/components/JobCard";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const [assessment, setAssessment] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (jobDescription: string, resume: string) => {
+  const handleSearch = async (resume: string) => {
     setIsLoading(true);
-    setAssessment(null);
+    setJobs([]);
 
     try {
-      const { data, error } = await supabase.functions.invoke("assess-fit", {
-        body: { jobDescription, resume },
+      const { data, error } = await supabase.functions.invoke("search-jobs", {
+        body: { resume },
       });
 
       if (error) throw error;
 
-      setAssessment(data.assessment);
+      if (data?.jobs && Array.isArray(data.jobs)) {
+        setJobs(data.jobs);
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (err: any) {
       toast({
         variant: "destructive",
-        title: "Assessment failed",
+        title: "Search failed",
         description: err.message || "Something went wrong. Please try again.",
       });
     } finally {
@@ -37,16 +42,16 @@ const Index = () => {
       <div className="mx-auto max-w-2xl px-4 py-12 sm:py-20">
         <header className="mb-10">
           <h1 className="font-mono text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Honest Fit Assessor
+            Job Fit Finder
           </h1>
           <p className="mt-2 font-body text-sm text-muted-foreground leading-relaxed max-w-lg">
-            Paste a job description and a candidate's background. Get a brutally honest assessment of whether there's a real fit — no spin, no fluff.
+            Paste your resume and let AI find matching jobs — ranked by fit with brutally honest assessments.
           </p>
         </header>
 
-        <AssessmentForm onSubmit={handleSubmit} isLoading={isLoading} />
+        <ResumeInput onSubmit={handleSearch} isLoading={isLoading} />
 
-        {assessment && <AssessmentResult assessment={assessment} />}
+        {jobs.length > 0 && <JobResultsList jobs={jobs} />}
       </div>
     </div>
   );
