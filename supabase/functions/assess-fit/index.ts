@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -106,16 +106,39 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    let data: any = null;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = null;
+    }
 
     if (!response.ok) {
+      const gatewayError =
+        (typeof data?.error === "string" && data.error) ||
+        data?.error?.message ||
+        data?.message ||
+        responseText ||
+        "AI request failed";
+
+      console.error("AI gateway request failed:", response.status, gatewayError);
+
       return new Response(
-        JSON.stringify({ error: data.error?.message || "AI request failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: gatewayError }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const assessment = data.choices?.[0]?.message?.content;
+    const assessment = data?.choices?.[0]?.message?.content;
+
+    if (!assessment) {
+      return new Response(
+        JSON.stringify({ error: "AI response did not contain an assessment" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ assessment }),
