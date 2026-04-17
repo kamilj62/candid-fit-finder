@@ -110,13 +110,13 @@ const JobCard = ({ job, rank, resume }: { job: Job; rank: number; resume: string
           </p>
 
           <a
-            href={`https://www.google.com/search?q=${encodeURIComponent(`${job.title} ${job.company} apply`)}`}
+            href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(`${job.title} ${job.company}`)}&location=${encodeURIComponent(job.location)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-md border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-mono text-xs font-medium"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Find Application Online
+            Find on LinkedIn Jobs
           </a>
 
           <div className="pt-2 border-t border-border">
