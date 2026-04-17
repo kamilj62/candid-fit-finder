@@ -7,16 +7,18 @@ import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [resume, setResume] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSearch = async (resume: string) => {
+  const handleSearch = async (resumeText: string) => {
     setIsLoading(true);
     setJobs([]);
+    setResume(resumeText);
 
     try {
       const { data, error } = await supabase.functions.invoke("search-jobs", {
-        body: { resume },
+        body: { resume: resumeText },
       });
 
       if (error) throw error;
@@ -51,7 +53,7 @@ const Index = () => {
 
         <ResumeInput onSubmit={handleSearch} isLoading={isLoading} />
 
-        {jobs.length > 0 && <JobResultsList jobs={jobs} />}
+        {jobs.length > 0 && <JobResultsList jobs={jobs} resume={resume} />}
       </div>
     </div>
   );
