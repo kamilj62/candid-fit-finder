@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, MapPin, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, DollarSign, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TailoredApplication from "@/components/TailoredApplication";
 
@@ -108,6 +108,16 @@ const JobCard = ({ job, rank, resume }: { job: Job; rank: number; resume: string
           <p className="text-xs text-muted-foreground">
             <span className="text-primary font-medium">Why it fits:</span> {job.why_good_fit}
           </p>
+
+          <a
+            href={`https://www.google.com/search?q=${encodeURIComponent(`${job.title} ${job.company} apply`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-md border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-mono text-xs font-medium"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Find Application Online
+          </a>
 
           <div className="pt-2 border-t border-border">
             <TailoredApplication job={job} resume={resume} />
