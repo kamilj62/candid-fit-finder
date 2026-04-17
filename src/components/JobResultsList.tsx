@@ -2,9 +2,10 @@ import JobCard, { type Job } from "@/components/JobCard";
 
 interface JobResultsListProps {
   jobs: Job[];
+  resume: string;
 }
 
-const JobResultsList = ({ jobs }: JobResultsListProps) => {
+const JobResultsList = ({ jobs, resume }: JobResultsListProps) => {
   const avgScore = Math.round(jobs.reduce((sum, j) => sum + j.match_score, 0) / jobs.length);
 
   return (
@@ -20,7 +21,7 @@ const JobResultsList = ({ jobs }: JobResultsListProps) => {
 
       <div className="space-y-3">
         {jobs.map((job, i) => (
-          <JobCard key={i} job={job} rank={i + 1} />
+          <JobCard key={i} job={job} rank={i + 1} resume={resume} />
         ))}
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, MapPin, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import TailoredApplication from "@/components/TailoredApplication";
 
 export interface Job {
   title: string;
@@ -27,7 +28,7 @@ const getScoreBg = (score: number) => {
   return "bg-red-400/10 border-red-400/20";
 };
 
-const JobCard = ({ job, rank }: { job: Job; rank: number }) => {
+const JobCard = ({ job, rank, resume }: { job: Job; rank: number; resume: string }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -107,6 +108,10 @@ const JobCard = ({ job, rank }: { job: Job; rank: number }) => {
           <p className="text-xs text-muted-foreground">
             <span className="text-primary font-medium">Why it fits:</span> {job.why_good_fit}
           </p>
+
+          <div className="pt-2 border-t border-border">
+            <TailoredApplication job={job} resume={resume} />
+          </div>
         </div>
       )}
     </div>
