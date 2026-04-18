@@ -52,7 +52,6 @@ serve(async (req) => {
 
     const ADZUNA_APP_ID = Deno.env.get("ADZUNA_APP_ID");
     const ADZUNA_APP_KEY = Deno.env.get("ADZUNA_APP_KEY");
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
     if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
       return jsonResponse(
@@ -69,7 +68,7 @@ serve(async (req) => {
     const inferredTitles =
       explicitTitles.length > 0
         ? explicitTitles
-        : await inferTitlesFromResume(resumeText, ANTHROPIC_API_KEY);
+        : fallbackTitlesFromResumeText(resumeText);
 
     const expandedTitles = expandTitles(inferredTitles, resumeText, seniority).slice(0, 3);
     const searchLocations = buildSearchLocations(location, remoteOnly).slice(0, 2);
@@ -236,61 +235,14 @@ function extractYearsOfExperience(text: string): number | null {
 
 function extractResumeSkills(resumeText: string): string[] {
   const knownSkills = [
-    "python",
-    "javascript",
-    "typescript",
-    "java",
-    "c++",
-    "c#",
-    "go",
-    "ruby",
-    "php",
-    "react",
-    "react native",
-    "node",
-    "node.js",
-    "next.js",
-    "vue",
-    "angular",
-    "html",
-    "css",
-    "tailwind",
-    "sql",
-    "postgres",
-    "mysql",
-    "mongodb",
-    "firebase",
-    "supabase",
-    "aws",
-    "gcp",
-    "azure",
-    "docker",
-    "kubernetes",
-    "terraform",
-    "fastapi",
-    "django",
-    "flask",
-    "express",
-    "rest api",
-    "graphql",
-    "git",
-    "linux",
-    "machine learning",
-    "deep learning",
-    "llm",
-    "openai",
-    "anthropic",
-    "rag",
-    "langchain",
-    "tensorflow",
-    "pytorch",
-    "scikit-learn",
-    "pandas",
-    "numpy",
-    "xgboost",
-    "opencv",
-    "mediapipe",
-    "vercel",
+    "python", "javascript", "typescript", "java", "c++", "c#", "go", "ruby", "php",
+    "react", "react native", "node", "node.js", "next.js", "vue", "angular",
+    "html", "css", "tailwind", "sql", "postgres", "mysql", "mongodb", "firebase",
+    "supabase", "aws", "gcp", "azure", "docker", "kubernetes", "terraform",
+    "fastapi", "django", "flask", "express", "rest api", "graphql", "git", "linux",
+    "machine learning", "deep learning", "llm", "openai", "anthropic", "rag",
+    "langchain", "tensorflow", "pytorch", "scikit-learn", "pandas", "numpy",
+    "xgboost", "opencv", "mediapipe", "vercel",
   ];
 
   const lower = resumeText.toLowerCase();
@@ -317,7 +269,7 @@ function fallbackTitlesFromResumeText(resumeText: string): string[] {
     titles.add("AI/ML Engineer");
   }
 
-  // Python signals
+  // Python + FastAPI signals
   if (text.includes("python") && text.includes("fastapi")) {
     titles.add("Python Developer");
     titles.add("Backend Engineer");
@@ -338,45 +290,6 @@ function fallbackTitlesFromResumeText(resumeText: string): string[] {
   return Array.from(titles).slice(0, 5);
 }
 
-function fallbackTitlesFromResumeText(resumeText: string): string[] {
-  const text = resumeText.toLowerCase();
-  const titles = new Set<string>();
-
-  if (text.includes("react")) {
-    titles.add("Frontend Engineer");
-    titles.add("Full Stack Engineer");
-  }
-
-  if (text.includes("node") || text.includes("backend") || text.includes("api")) {
-    titles.add("Backend Engineer");
-    titles.add("Software Engineer");
-  }
-
-  if (text.includes("python")) {
-    titles.add("Python Developer");
-    titles.add("Software Engineer");
-  }
-
-  if (
-    text.includes("machine learning") ||
-    text.includes("ai") ||
-    text.includes("llm") ||
-    text.includes("rag")
-  ) {
-    titles.add("AI Engineer");
-    titles.add("Machine Learning Engineer");
-    titles.add("Applied AI Engineer");
-  }
-
-  if (titles.size === 0) {
-    titles.add("Software Engineer");
-    titles.add("Full Stack Engineer");
-    titles.add("Backend Engineer");
-  }
-
-  return Array.from(titles).slice(0, 6);
-}
-
 function expandTitles(
   baseTitles: string[],
   resumeText: string,
@@ -392,24 +305,17 @@ function expandTitles(
 
     variations.add(title);
 
+    if (lower.includes("ai") || lower.includes("machine learning") || lower.includes("ml")) {
+      variations.add("AI Engineer");
+      variations.add("Machine Learning Engineer");
+      variations.add("Applied AI Engineer");
+      variations.add("Python Developer");
+    }
+
     if (lower.includes("software")) {
       variations.add("Software Engineer");
       variations.add("Full Stack Engineer");
       variations.add("Backend Engineer");
-      variations.add("Frontend Engineer");
-    }
-
-    if (lower.includes("full stack")) {
-      variations.add("Software Engineer");
-      variations.add("Backend Engineer");
-      variations.add("Frontend Engineer");
-      variations.add("Full Stack Developer");
-    }
-
-    if (lower.includes("frontend") || lower.includes("react")) {
-      variations.add("Frontend Engineer");
-      variations.add("React Developer");
-      variations.add("UI Engineer");
     }
 
     if (lower.includes("backend") || lower.includes("api")) {
@@ -418,26 +324,16 @@ function expandTitles(
       variations.add("Platform Engineer");
     }
 
-    if (lower.includes("ai") || lower.includes("machine learning") || lower.includes("ml")) {
-      variations.add("AI Engineer");
-      variations.add("Machine Learning Engineer");
-      variations.add("Applied AI Engineer");
-      variations.add("Python Developer");
-    }
-
     if (lower.includes("developer")) {
       variations.add(title.replace(/developer/i, "Engineer"));
-      variations.add("Software Developer");
     }
   }
 
   const text = resumeText.toLowerCase();
 
-  if (text.includes("python")) variations.add("Python Developer");
-  if (text.includes("react")) variations.add("Frontend Engineer");
-  if (text.includes("node")) variations.add("Backend Engineer");
-  if (text.includes("fastapi")) variations.add("Backend Engineer");
   if (text.includes("rag") || text.includes("llm")) variations.add("Applied AI Engineer");
+  if (text.includes("python")) variations.add("Python Developer");
+  if (text.includes("fastapi")) variations.add("Backend Engineer");
 
   const cleaned = Array.from(variations)
     .map((t) => normalizeTitleForSeniority(t, seniority))
@@ -639,38 +535,13 @@ function scoreJob(
   }
 
   const coreSkills = [
-    "python",
-    "javascript",
-    "typescript",
-    "react",
-    "node",
-    "sql",
-    "aws",
-    "docker",
-    "machine learning",
-    "ai",
-    "llm",
-    "rag",
-    "fastapi",
-    "tensorflow",
-    "pytorch",
-    "scikit-learn",
+    "python", "javascript", "typescript", "react", "node", "sql", "aws", "docker",
+    "machine learning", "ai", "llm", "rag", "fastapi", "tensorflow", "pytorch", "scikit-learn",
   ];
 
   const secondarySkills = [
-    "tailwind",
-    "mongodb",
-    "postgres",
-    "firebase",
-    "supabase",
-    "vercel",
-    "git",
-    "linux",
-    "opencv",
-    "mediapipe",
-    "xgboost",
-    "pandas",
-    "numpy",
+    "tailwind", "mongodb", "postgres", "firebase", "supabase", "vercel", "git",
+    "linux", "opencv", "mediapipe", "xgboost", "pandas", "numpy",
   ];
 
   let matchedCore = 0;
@@ -718,21 +589,10 @@ function scoreJob(
     }
   }
 
-  if ((job.salary_min ?? 0) > 0 || (job.salary_max ?? 0) > 0) {
-    qualityScore += 2;
-  }
-
-  if (company.trim().length > 1) {
-    qualityScore += 2;
-  }
-
-  if ((job.description || "").length > 400) {
-    qualityScore += 2;
-  }
-
-  if (looksSpammy(description)) {
-    qualityScore -= 8;
-  }
+  if ((job.salary_min ?? 0) > 0 || (job.salary_max ?? 0) > 0) qualityScore += 2;
+  if (company.trim().length > 1) qualityScore += 2;
+  if ((job.description || "").length > 400) qualityScore += 2;
+  if (looksSpammy(description)) qualityScore -= 8;
 
   return titleScore + seniorityScore + skillsScore + locationScore + qualityScore;
 }
@@ -769,9 +629,7 @@ function quickFit(
     );
   });
 
-  if (strongTitleMatch) {
-    reasons.push("Title aligns closely with your target roles");
-  }
+  if (strongTitleMatch) reasons.push("Title aligns closely with your target roles");
 
   const matchedSkills = context.resumeSkills.filter((skill) =>
     description.includes(skill.toLowerCase())
@@ -817,17 +675,8 @@ function quickFit(
   }
 
   const missingCore = [
-    "python",
-    "javascript",
-    "typescript",
-    "react",
-    "node",
-    "sql",
-    "aws",
-    "docker",
-    "machine learning",
-    "llm",
-    "rag",
+    "python", "javascript", "typescript", "react", "node", "sql",
+    "aws", "docker", "machine learning", "llm", "rag",
   ].filter(
     (skill) =>
       description.includes(skill) &&
@@ -860,10 +709,7 @@ function quickFit(
     recommendation = "skip";
   }
 
-  if (
-    gaps.some((g) => g.toLowerCase().includes("too senior")) &&
-    fitScore < 80
-  ) {
+  if (gaps.some((g) => g.toLowerCase().includes("too senior")) && fitScore < 80) {
     recommendation = "skip";
   }
 
