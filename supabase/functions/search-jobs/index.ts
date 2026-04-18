@@ -44,7 +44,9 @@ serve(async (req) => {
   try {
     const body: SearchRequest = await req.json();
 
-    const resumeText = (body.resumeText || body.resume || "").trim();
+    const resumeText = (body.resumeText || (body as any).resume || "").trim();
+    console.log("Resume length:", resumeText.length);
+    console.log("Adzuna ID present:", !!Deno.env.get("ADZUNA_APP_ID"));
     const location = (body.location || "United States").trim();
     const remoteOnly = Boolean(body.remoteOnly);
 
@@ -89,6 +91,7 @@ serve(async (req) => {
           page: 1,
         });
 
+        console.log(`Jobs for "${titleQuery}" in "${searchLocation}": ${adzunaJobs.length}`);
         allJobs.push(...adzunaJobs);
       }
     }
