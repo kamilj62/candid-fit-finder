@@ -256,20 +256,17 @@ function fallbackTitlesFromResumeText(resumeText: string): string[] {
   const text = resumeText.toLowerCase();
   const titles = new Set<string>();
 
-  // AI/ML signals — prioritize these
+  // AI/ML signals — use titles Adzuna actually has
   if (
     text.includes("machine learning") ||
     text.includes("llm") ||
     text.includes("rag") ||
     text.includes("langchain") ||
-    text.includes("tensorflow") ||
-    text.includes("mediapipe") ||
-    text.includes("computer vision")
+    text.includes("tensorflow")
   ) {
-    titles.add("AI Engineer");
     titles.add("Machine Learning Engineer");
-    titles.add("Applied AI Engineer");
-    titles.add("AI/ML Engineer");
+    titles.add("AI Engineer");
+    titles.add("Python Developer");
   }
 
   // Python + FastAPI signals
@@ -278,19 +275,18 @@ function fallbackTitlesFromResumeText(resumeText: string): string[] {
     titles.add("Backend Engineer");
   }
 
-  // Only add frontend if no AI/ML signals dominate
+  // Only add frontend if no AI/ML signals
   if (titles.size === 0 && text.includes("react")) {
-    titles.add("Frontend Engineer");
+    titles.add("Software Engineer");
     titles.add("Full Stack Engineer");
   }
 
   // Fallback
   if (titles.size === 0) {
     titles.add("Software Engineer");
-    titles.add("Full Stack Engineer");
   }
 
-  return Array.from(titles).slice(0, 5);
+  return Array.from(titles).slice(0, 3);
 }
 
 function expandTitles(
@@ -366,14 +362,7 @@ function applySeniorityToQuery(
   title: string,
   seniority: "entry" | "mid" | "senior"
 ): string {
-  if (seniority === "entry") {
-    return `${title} junior OR "entry level" OR associate`;
-  }
-
-  if (seniority === "senior") {
-    return `${title} senior OR lead OR staff`;
-  }
-
+  // Keep queries simple — Adzuna struggles with complex OR queries
   return title;
 }
 
