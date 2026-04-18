@@ -44,7 +44,7 @@ serve(async (req) => {
   try {
     const body: SearchRequest = await req.json();
 
-    const resumeText = (body.resumeText || "").trim();
+    const resumeText = (body.resumeText || body.resume || "").trim();
     const location = (body.location || "United States").trim();
     const remoteOnly = Boolean(body.remoteOnly);
 
