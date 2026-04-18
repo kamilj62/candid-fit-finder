@@ -191,6 +191,14 @@ function parseTargetTitles(targetTitles?: string[], targetJobTitles?: string): s
 
 function inferSeniority(resumeText: string): "entry" | "mid" | "senior" {
   const text = resumeText.toLowerCase();
+
+  // If transitioning careers, treat as entry level for the new field
+  if (
+    /transitioning|career change|career transition|new to (ai|ml|software|engineering)/.test(text)
+  ) {
+    return "entry";
+  }
+
   const years = extractYearsOfExperience(text);
 
   if (
