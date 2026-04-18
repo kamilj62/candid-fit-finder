@@ -308,12 +308,15 @@ You are extracting likely job targets from a resume.
 Return ONLY valid JSON in this exact shape:
 {"titles":["Title 1","Title 2","Title 3","Title 4","Title 5"]}
 
-Rules:
-- 5 concise real-world job titles
-- no explanation
-- no markdown
-- include adjacent realistic targets
-- favor roles the candidate could plausibly get now
+RULES:
+- match_score is 0-100, be BRUTALLY HONEST - don't inflate scores
+- If the candidate is entry-level or transitioning careers, senior roles should score 40-55 MAX
+- Include some jobs with lower scores (50-65) to show realistic options
+- Sort by match_score descending
+- key_gaps should be real gaps, not filler
+- honest_assessment must be brutally honest, candidate speaking in first person
+- If the role requires 5+ years experience and candidate has less than 2, score it below 60
+- Make job listings realistic for the current job market
 
 Resume:
 ${resumeText.slice(0, 12000)}
