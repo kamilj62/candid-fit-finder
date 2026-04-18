@@ -78,29 +78,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) {
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicApiKey) {
       return new Response(
-        JSON.stringify({ error: "Lovable API key not configured" }),
+        JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
+        "x-api-key": anthropicApiKey,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `Here is the job description:\n\n${jobDescription}\n\nHere is my resume/background:\n\n${resume}\n\nPlease provide your honest assessment.`,
-          },
-        ],
+        model: "claude-3-5-sonnet-latest",
+        system: SYSTEM_PROMPT,
+        messages: [{
+          role: "user",
+          content: `Here is the job description:\n\n${jobDescription}\n\nHere is my resume/background:\n\n${resume}\n\nPlease provide your honest assessment.`,
+        }],
         temperature: 0.3,
         max_tokens: 2000,
       }),
@@ -131,7 +130,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const assessment = data?.choices?.[0]?.message?.content;
+    const textBlocks = Array.isArray(data?.content)
+      ? data.content.filter((block: any) => block?.type === "text")
+      : [];
+    const assessment = textBlocks.map((block: any) => block.text).join("\n").trim();
 
     if (!assessment) {
       return new Response(

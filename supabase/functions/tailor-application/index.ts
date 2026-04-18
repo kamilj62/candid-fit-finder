@@ -1,87 +1,273 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `You are an expert career coach and resume writer. Given a candidate's resume and a target job, produce:
-1. A tailored resume rewritten to emphasize relevance to this job (keep it truthful — never invent experience). Use clean Markdown with sections: Summary, Skills, Experience, Education.
-2. A concise, personalized cover letter (3-4 short paragraphs) addressed to the hiring team at the company. Plain text, no markdown.
+type Job = {
+  title?: string;
+  company?: string;
+  location?: string;
+  description?: string;
+  url?: string;
+  fitScore?: number;
+  reasons?: string[];
+  gaps?: string[];
+};
 
-Return ONLY valid JSON in this exact shape (no markdown fences, no extra text):
-{
-  "resume": "markdown string here",
-  "cover_letter": "plain text string here"
-}`;
+type TailorRequest = {
+  resume?: string;
+  job?: Job;
+};
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+type TailorResponse = {
+  resume: string;
+  cover_letter: string;
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
-    const { resume, job } = await req.json();
-    if (!resume || !job) {
-      return new Response(JSON.stringify({ error: "Resume and job are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { resume, job }: TailorRequest = await req.json();
+
+    if (!resume || !resume.trim()) {
+      return jsonResponse({ error: "Missing resume" }, 400);
     }
 
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) {
-      return new Response(JSON.stringify({ error: "API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!job || !job.title) {
+      return jsonResponse({ error: "Missing job data" }, 400);
     }
 
-    const userMsg = `CANDIDATE RESUME:\n${resume}\n\nTARGET JOB:\nTitle: ${job.title}\nCompany: ${job.company}\nLocation: ${job.location}\nSummary: ${job.summary}\nKey matches: ${(job.key_matches || []).join(", ")}\nKey gaps: ${(job.key_gaps || []).join(", ")}\n\nProduce the tailored resume and cover letter.`;
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const company = job.company || "the employer";
+    const location = job.location || "";
+    const description = job.description || "";
+    const reasons = job.reasons || [];
+    const gaps = job.gaps || [];
+
+    const greeting =
+      !company || company.toLowerCase() === "unknown company"
+        ? "Dear Hiring Team,"
+        : `Dear ${company} Hiring Team,`;
+
+    const prompt = `
+Return ONLY valid JSON:
+
+{
+  "resume": "...",
+  "cover_letter": "..."
+}
+
+Candidate resume:
+${resume.slice(0, 12000)}
+
+Job:
+Title: ${job.title}
+Company: ${company}
+Location: ${location}
+
+Strengths:
+${reasons.map((r) => `- ${r}`).join("\n")}
+
+Gaps:
+${gaps.map((g) => `- ${g}`).join("\n")}
+
+Job description:
+${description.slice(0, 8000)}
+`;
+
+    // 🔹 1. Try Anthropic
+    if (ANTHROPIC_API_KEY) {
+      const result = await callAnthropic(ANTHROPIC_API_KEY, prompt);
+      if (result) return jsonResponse(result);
+    }
+
+    // 🔹 2. Try OpenAI
+    if (OPENAI_API_KEY) {
+      const result = await callOpenAI(OPENAI_API_KEY, prompt);
+      if (result) return jsonResponse(result);
+    }
+
+    // 🔹 3. Final fallback
+    return jsonResponse(
+      buildFallbackTailoring(resume, job, greeting, reasons, gaps)
+    );
+  } catch (err) {
+    console.error("tailor-application error:", err);
+    return jsonResponse({ error: "Server error" }, 500);
+  }
+});
+
+
+// =======================
+// Anthropic
+// =======================
+
+async function callAnthropic(
+  key: string,
+  prompt: string
+): Promise<TailorResponse | null> {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+      },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMsg },
-        ],
-        temperature: 0.6,
+        model: "claude-3-5-sonnet-latest",
+        max_tokens: 1800,
+        temperature: 0.2,
+        messages: [{ role: "user", content: prompt }],
       }),
     });
 
-    const responseText = await response.text();
-    let data: any = null;
-    try { data = JSON.parse(responseText); } catch { data = null; }
-
-    if (!response.ok) {
-      const err = data?.error?.message || data?.error || responseText || "AI request failed";
-      console.error("AI gateway error:", response.status, err);
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited. Please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Credits exhausted. Please add funds." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      return new Response(JSON.stringify({ error: err }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!res.ok) {
+      console.error("Anthropic failed:", await res.text());
+      return null;
     }
 
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) {
-      return new Response(JSON.stringify({ error: "No response from AI" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    const data = await res.json();
+    const text = data?.content?.[0]?.text ?? "";
 
-    let parsed;
-    try {
-      const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      return new Response(JSON.stringify({ error: "Failed to parse AI output", raw: content }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    return new Response(JSON.stringify(parsed),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return safeParse(text);
+  } catch (err) {
+    console.error("Anthropic error:", err);
+    return null;
   }
-});
+}
+
+
+// =======================
+// OpenAI fallback
+// =======================
+
+async function callOpenAI(
+  key: string,
+  prompt: string
+): Promise<TailorResponse | null> {
+  try {
+    const res = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        input: prompt,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("OpenAI failed:", await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    const text = data?.output_text || "";
+
+    return safeParse(text);
+  } catch (err) {
+    console.error("OpenAI error:", err);
+    return null;
+  }
+}
+
+
+// =======================
+// Safe JSON parse
+// =======================
+
+function safeParse(text: string): TailorResponse | null {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed.resume && parsed.cover_letter) return parsed;
+  } catch {
+    console.error("Bad JSON:", text);
+  }
+  return null;
+}
+
+
+// =======================
+// Fallback (no AI)
+// =======================
+
+function buildFallbackTailoring(
+  resume: string,
+  job: Job,
+  greeting: string,
+  reasons: string[],
+  gaps: string[]
+): TailorResponse {
+  const name = extractNameFromResume(resume);
+
+  const fallbackResume = `${resume}
+
+---
+
+Tailored for ${job.title}
+Focus on: ${reasons.join(", ") || "relevant experience"}
+`;
+
+  const fallbackCoverLetter = `${greeting}
+
+I am excited to apply for the ${job.title}${job.company ? ` at ${job.company}` : ""}.
+
+My experience aligns well with this role, especially in ${reasons.join(", ") || "software engineering"}.
+
+I am confident I can ramp quickly and contribute effectively.
+
+Thank you for your consideration.
+
+Sincerely,
+${name}`;
+
+  return {
+    resume: fallbackResume,
+    cover_letter: fallbackCoverLetter,
+  };
+}
+
+
+// =======================
+// Name extraction
+// =======================
+
+function extractNameFromResume(resume: string): string {
+  const firstLine = resume.split("\n").map((l) => l.trim()).find(Boolean) || "";
+
+  if (
+    firstLine &&
+    firstLine.length < 60 &&
+    !firstLine.includes("@") &&
+    !firstLine.toLowerCase().includes("engineer")
+  ) {
+    return firstLine;
+  }
+
+  return "Your Name";
+}
+
+
+// =======================
+// Response helper
+// =======================
+
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}

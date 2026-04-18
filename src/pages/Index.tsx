@@ -11,14 +11,28 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSearch = async (resumeText: string) => {
+  const handleSearch = async (
+    resumeText: string,
+    preferredLocation: string,
+    searchMode: "both" | "remote" | "nearby"
+  ) => {
     setIsLoading(true);
     setJobs([]);
     setResume(resumeText);
 
     try {
+      const remoteOnly = searchMode === "remote";
+      const location =
+        searchMode === "remote"
+          ? "Remote"
+          : preferredLocation?.trim() || "United States";
+
       const { data, error } = await supabase.functions.invoke("search-jobs", {
-        body: { resume: resumeText },
+        body: {
+          resumeText,
+          location,
+          remoteOnly,
+        },
       });
 
       if (error) throw error;
@@ -29,10 +43,24 @@ const Index = () => {
         throw new Error("Invalid response format");
       }
     } catch (err: any) {
+      let description = err?.message || "Something went wrong. Please try again.";
+      const maybeResponse = err?.context;
+
+      if (maybeResponse && typeof maybeResponse.json === "function") {
+        try {
+          const payload = await maybeResponse.json();
+          if (typeof payload?.error === "string" && payload.error.trim()) {
+            description = payload.error;
+          }
+        } catch {
+          // keep fallback message
+        }
+      }
+
       toast({
         variant: "destructive",
         title: "Search failed",
-        description: err.message || "Something went wrong. Please try again.",
+        description,
       });
     } finally {
       setIsLoading(false);
@@ -47,7 +75,7 @@ const Index = () => {
             Job Fit Finder
           </h1>
           <p className="mt-2 font-body text-sm text-muted-foreground leading-relaxed max-w-lg">
-            Paste your resume and let AI find matching jobs — ranked by fit with brutally honest assessments.
+            Paste your resume and find real jobs ranked by fit, with clear strengths and potential gaps.
           </p>
         </header>
 
