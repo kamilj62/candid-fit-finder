@@ -311,20 +311,17 @@ async function inferTitlesFromResume(
 
   try {
     const prompt = `
-You are extracting likely job targets from a resume.
+You are extracting likely job targets from a resume for someone transitioning into AI/ML.
 
 Return ONLY valid JSON in this exact shape:
 {"titles":["Title 1","Title 2","Title 3","Title 4","Title 5"]}
 
 RULES:
-- match_score is 0-100, be BRUTALLY HONEST - don't inflate scores
-- If the candidate is entry-level or transitioning careers, senior roles should score 40-55 MAX
-- Include some jobs with lower scores (50-65) to show realistic options
-- Sort by match_score descending
-- key_gaps should be real gaps, not filler
-- honest_assessment must be brutally honest, candidate speaking in first person
-- If the role requires 5+ years experience and candidate has less than 2, score it below 60
-- Make job listings realistic for the current job market
+- Focus on AI/ML and software engineering roles that match their CURRENT skills
+- If they mention RAG, LangChain, LLMs, TensorFlow → include AI Engineer, ML Engineer
+- If they are transitioning into AI/ML → prioritize AI/ML titles over frontend titles
+- Do NOT suggest senior roles for career transitioners
+- Max 5 titles
 
 Resume:
 ${resumeText.slice(0, 12000)}
