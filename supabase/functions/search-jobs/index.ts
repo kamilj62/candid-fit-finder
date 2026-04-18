@@ -297,69 +297,45 @@ function extractResumeSkills(resumeText: string): string[] {
   return knownSkills.filter((skill) => lower.includes(skill.toLowerCase()));
 }
 
-async function inferTitlesFromResume(
-  resumeText: string,
-  anthropicApiKey?: string | null
-): Promise<string[]> {
-  if (!resumeText.trim()) {
-    return ["Software Engineer", "Full Stack Engineer", "Backend Engineer"];
+function fallbackTitlesFromResumeText(resumeText: string): string[] {
+  const text = resumeText.toLowerCase();
+  const titles = new Set<string>();
+
+  // AI/ML signals — prioritize these
+  if (
+    text.includes("machine learning") ||
+    text.includes("llm") ||
+    text.includes("rag") ||
+    text.includes("langchain") ||
+    text.includes("tensorflow") ||
+    text.includes("mediapipe") ||
+    text.includes("computer vision")
+  ) {
+    titles.add("AI Engineer");
+    titles.add("Machine Learning Engineer");
+    titles.add("Applied AI Engineer");
+    titles.add("AI/ML Engineer");
   }
 
-  if (!anthropicApiKey) {
-    return fallbackTitlesFromResumeText(resumeText);
+  // Python signals
+  if (text.includes("python") && text.includes("fastapi")) {
+    titles.add("Python Developer");
+    titles.add("Backend Engineer");
   }
 
-  try {
-    const prompt = `
-You are extracting likely job targets from a resume for someone transitioning into AI/ML.
-
-Return ONLY valid JSON in this exact shape:
-{"titles":["Title 1","Title 2","Title 3","Title 4","Title 5"]}
-
-RULES:
-- Focus on AI/ML and software engineering roles that match their CURRENT skills
-- If they mention RAG, LangChain, LLMs, TensorFlow → include AI Engineer, ML Engineer
-- If they are transitioning into AI/ML → prioritize AI/ML titles over frontend titles
-- Do NOT suggest senior roles for career transitioners
-- Max 5 titles
-
-Resume:
-${resumeText.slice(0, 12000)}
-`;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": anthropicApiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-sonnet-latest",
-        max_tokens: 300,
-        temperature: 0.2,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn("Anthropic title inference failed:", await response.text());
-      return fallbackTitlesFromResumeText(resumeText);
-    }
-
-    const data = await response.json();
-    const text = data?.content?.[0]?.text ?? "";
-    const parsed = JSON.parse(text);
-
-    if (!Array.isArray(parsed?.titles)) {
-      return fallbackTitlesFromResumeText(resumeText);
-    }
-
-    return parsed.titles.map((t: string) => t.trim()).filter(Boolean).slice(0, 6);
-  } catch (error) {
-    console.warn("Anthropic inference error:", error);
-    return fallbackTitlesFromResumeText(resumeText);
+  // Only add frontend if no AI/ML signals dominate
+  if (titles.size === 0 && text.includes("react")) {
+    titles.add("Frontend Engineer");
+    titles.add("Full Stack Engineer");
   }
+
+  // Fallback
+  if (titles.size === 0) {
+    titles.add("Software Engineer");
+    titles.add("Full Stack Engineer");
+  }
+
+  return Array.from(titles).slice(0, 5);
 }
 
 function fallbackTitlesFromResumeText(resumeText: string): string[] {
