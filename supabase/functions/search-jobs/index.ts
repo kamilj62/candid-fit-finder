@@ -679,6 +679,24 @@ function quickFit(
     gaps.push(`Missing skills like ${missingCore.slice(0, 3).join(", ")}`);
   }
 
+  // Hard disqualifiers
+  const hardDisqualifiers = [
+    "security clearance",
+    "secret clearance",
+    "top secret",
+    "ts/sci",
+    "dod clearance",
+    "government clearance",
+  ];
+
+  const hasHardDisqualifier = hardDisqualifiers.some((d) =>
+    description.includes(d)
+  );
+
+  if (hasHardDisqualifier) {
+    gaps.push("Requires security clearance — I don't have this");
+  }
+
   while (reasons.length < 2) {
     if (!reasons.includes("Relevant engineering background")) {
       reasons.push("Relevant engineering background");
@@ -702,6 +720,10 @@ function quickFit(
   }
 
   if (gaps.some((g) => g.toLowerCase().includes("too senior")) && fitScore < 80) {
+    recommendation = "skip";
+  }
+
+  if (gaps.some((g) => g.toLowerCase().includes("security clearance"))) {
     recommendation = "skip";
   }
 
